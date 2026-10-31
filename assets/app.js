@@ -2,6 +2,7 @@
   'use strict';
 
   var CATALOG = window.ENL_CATALOG || null;
+  var DEFS = window.DEFINITIONS || {};
   var GLOSSARY = window.GLOSSARY || [];
   var SITE = (CATALOG && CATALOG.site) || 'https://video.enlighten.org.tw/zh-tw/';
   var PAGE = 20;          // 每次顯示幾集
@@ -42,6 +43,7 @@
 
   // ---------- 載入資料 ----------
   var episodes = [];
+  var epById = {};
   var seriesByCode = {};
   var loaded = false;
 
@@ -247,6 +249,7 @@
     $('q').value = q;
     try { history.replaceState(null, '', q ? '#q=' + encodeURIComponent(q) : location.pathname); } catch (e) { /* file:// */ }
     if (!loaded) return;
+    $('dict').hidden = true;
     if (!q) { showHome(); return; }
 
     var groups = parseQuery(q, opt.syn.checked);
@@ -301,12 +304,64 @@
     el.innerHTML = html + '</div>';
   }
 
+  function quoteHtml(q) {
+    var e = epById[q.id];
+    var src = esc(q.se) + ' 第 ' + esc(q.ep) + ' 集《' + esc(q.ti) + '》' + (q.w ? ' · ' + esc(q.w) : '');
+    var links = e ? ' · <button class="qplay" data-ep="' + esc(q.id) + '" data-t="' + q.t + '">約 ' + fmtTime(q.t) + ' ▶</button> · <a href="' + pageUrl(e) + '" target="_blank" rel="noopener">文字稿</a>' : '';
+    return '<blockquote><p>' + esc(q.x) + '</p><div class="src">' + src + links + '</div></blockquote>';
+  }
+
+  // 名詞說明卡片：自己寫的簡短說明 + 節目中的說法與原文摘錄
+  function entryHtml(g, opts) {
+    opts = opts || {};
+    var d = DEFS[g.term] || {};
+    var alias = (g.aliases || []).length ? '<span class="alias">相關詞：' + esc(g.aliases.join('、')) + '</span>' : '';
+    var count = opts.count != null ? '<span class="alias">出現 ' + opts.count + ' 次</span>' : '';
+    var html = '<div class="gloss"><h3>' + (opts.prefix || '') + esc(g.term) + alias + count + '</h3>';
+    if (g.desc) html += '<p>' + esc(g.desc) + '</p>';
+    if (d.s) html += '<p class="from"><span class="tag">節目中的說法</span>' + esc(d.s) + '</p>';
+    if (d.q && d.q.length) {
+      html += '<details' + (opts.open ? ' open' : '') + '><summary>節目原文摘錄（' + d.q.length + ' 段）</summary>' +
+        d.q.map(quoteHtml).join('') + '</details>';
+    }
+    if (opts.searchBtn) html += '<button class="chip" data-q="' + esc(g.term) + '">搜尋「' + esc(g.term) + '」出現的所有節目</button>';
+    return html + '</div>';
+  }
+
   function renderGlossary(groups) {
     $('glossary').innerHTML = groups.filter(function (g) { return g.entry; }).map(function (g) {
-      var e = g.entry;
-      var alias = (e.aliases || []).length ? '<span class="alias">相關詞：' + esc(e.aliases.join('、')) + '</span>' : '';
-      return '<div class="gloss"><h3>名詞說明：' + esc(e.term) + alias + '</h3><p>' + esc(e.desc) + '</p></div>';
+      return entryHtml(g.entry, { prefix: '名詞說明：', open: true });
     }).join('');
+  }
+
+  // ---------- 名詞辭典 ----------
+  function showDict() {
+    $('home').hidden = true;
+    $('results').hidden = true;
+    $('dict').hidden = false;
+    try { history.replaceState(null, '', '#dict'); } catch (e) { /* file:// */ }
+    if ($('dict').dataset.ready) return;
+    $('dict').dataset.ready = '1';
+    var counts = CATALOG.termCounts || {};
+    var list = GLOSSARY.slice().sort(function (a, b) { return (counts[b.term] || 0) - (counts[a.term] || 0); });
+    $('dict').innerHTML = '<h2>名詞辭典（' + list.length + ' 個名詞）</h2>' +
+      '<p class="hint">「節目中的說法」是從節目文字稿中挑出解釋該名詞的段落後整理的摘要，下方附原文與出處。依出現次數排序。</p>' +
+      '<input id="dictFilter" class="dict-filter" type="search" placeholder="篩選名詞，例如：涅槃、識">' +
+      '<div id="dictList"></div>';
+    function render(f) {
+      f = norm(f);
+      // 名詞本身符合的排前面，只有說明文字符合的排後面
+      var byName = [], byText = [];
+      list.forEach(function (g) {
+        var d = DEFS[g.term] || {};
+        if (!f || g.variants.some(function (v) { return v.indexOf(f) >= 0; })) byName.push(g);
+        else if (norm(g.desc).indexOf(f) >= 0 || norm(d.s).indexOf(f) >= 0) byText.push(g);
+      });
+      $('dictList').innerHTML = byName.concat(byText).map(function (g) { return entryHtml(g, { count: counts[g.term] || 0, searchBtn: true }); }).join('') ||
+        '<p class="hint">沒有符合的名詞。</p>';
+    }
+    render('');
+    $('dictFilter').addEventListener('input', function () { render(this.value); });
   }
 
   function renderRelated(results, groups) {
@@ -458,6 +513,7 @@
       (hot.length ? '<h2>常見名詞（依出現次數）</h2><div class="chips">' + hot.map(function (k) {
         return '<button class="chip" data-q="' + esc(k) + '">' + esc(k) + '<small>' + counts[k] + '</small></button>';
       }).join('') + '</div><p class="hint">數字含相關詞。名詞說明與相關詞可在 data/glossary.js 中自行增修。</p>' : '') +
+      '<p><button class="chip" id="dictBtn2">打開名詞辭典（' + GLOSSARY.length + ' 個名詞，含節目原文說明）</button></p>' +
       '<h2>系列</h2><table class="serieslist">' + CATALOG.series.map(function (s) {
         return '<tr><td>' + esc(s.code) + '</td><td><a href="' + SITE + 'a/' + s.code + '" target="_blank" rel="noopener">' + esc(s.name) + '</a></td><td class="num">' + s.count + ' 集</td></tr>';
       }).join('') + '</table>';
@@ -506,6 +562,9 @@
     var sb = e.target.closest('button[data-series]');
     if (sb) { opt.series.value = sb.dataset.series; runSearch(state.query); }
     if (e.target.id === 'csvBtn') downloadCsv();
+    if (e.target.id === 'dictBtn' || e.target.id === 'dictBtn2') { e.preventDefault(); if (loaded) { showDict(); window.scrollTo(0, 0); } }
+    var qp = e.target.closest('.qplay');
+    if (qp && epById[qp.dataset.ep]) play(epById[qp.dataset.ep], +qp.dataset.t);
   });
 
   // ---------- 啟動 ----------
@@ -522,7 +581,9 @@
   fillFilters();
   loadAll(function () {
     loaded = true;
+    episodes.forEach(function (e) { epById[e.id] = e; });
     fillWho();
-    runSearch($('q').value);
+    if (/^#dict/.test(location.hash) && !$('q').value) showDict();
+    else runSearch($('q').value);
   });
 })();

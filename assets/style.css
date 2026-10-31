@@ -170,3 +170,19 @@ mark.m3 { background: var(--mark4); }
 .player-foot .hint { margin: 4px 0 0; font-size: .8rem; }
 
 [hidden] { display: none !important; }
+
+/* dictionary */
+.titlebar { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.navlink { font-size: .95rem; text-decoration: none; border: 1px solid var(--accent); border-radius: 999px; padding: 2px 12px; white-space: nowrap; }
+.navlink:hover { background: var(--accent); color: #fff; }
+.gloss .from { margin-top: 6px; }
+.gloss .tag { display: inline-block; font-size: .75rem; background: var(--accent); color: #fff; border-radius: 4px; padding: 0 6px; margin-right: 6px; vertical-align: 1px; }
+.gloss details { margin-top: 8px; }
+.gloss summary { cursor: pointer; color: var(--accent); font-size: .9rem; }
+.gloss blockquote { margin: 8px 0 0; padding: 8px 12px; background: var(--surface); border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; }
+.gloss blockquote p { margin: 0; font-size: .93rem; }
+.gloss .src { color: var(--muted); font-size: .8rem; margin-top: 4px; }
+.qplay { border: 0; background: none; color: var(--accent); cursor: pointer; padding: 0; font-size: .8rem; }
+.gloss > .chip { margin-top: 10px; }
+.dict-filter { width: 100%; max-width: 420px; padding: 8px 12px; border: 1.5px solid var(--line); border-radius: var(--radius); background: var(--surface); margin-bottom: 6px; }
+#dict .gloss { background: var(--surface); border: 1px solid var(--line); }
