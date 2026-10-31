@@ -9,7 +9,7 @@
 <body>
 <header class="top">
   <div class="wrap">
-    <div class="titlebar"><h1><a href="#" id="homeLink">正覺弘法視頻搜尋</a></h1><a href="#dict" id="dictBtn" class="navlink">名詞辭典</a></div>
+    <div class="titlebar"><h1><a href="#" id="homeLink">正覺弘法視頻搜尋</a></h1><nav><a href="#browse" id="browseBtn" class="navlink">節目瀏覽</a> <a href="#dict" id="dictBtn" class="navlink">名詞辭典</a></nav></div>
     <p class="sub">搜尋 <a href="https://video.enlighten.org.tw/zh-tw/" target="_blank" rel="noopener">正覺教團弘法視頻</a> 所有節目的文字稿，找出名詞出現在哪一集、大約第幾分幾秒。</p>
     <form id="searchForm" class="search" autocomplete="off">
       <input id="q" type="search" placeholder="輸入名詞，例如：如來藏、四聖諦、阿賴耶識（多個詞用空格分開）" aria-label="搜尋名詞">
@@ -57,6 +57,7 @@
   <section id="content">
     <div id="home"></div>
     <div id="dict" hidden></div>
+    <div id="browse" hidden></div>
     <div id="results" hidden>
       <div id="summary"></div>
       <div id="glossary"></div>
@@ -86,6 +87,7 @@
 
 <script src="data/glossary.js"></script>
 <script src="data/definitions.js"></script>
+<script src="data/summaries.js"></script>
 <script src="data/catalog.js"></script>
 <script src="assets/app.js"></script>
 </body>

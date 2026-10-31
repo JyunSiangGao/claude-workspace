@@ -3,6 +3,7 @@
 
   var CATALOG = window.ENL_CATALOG || null;
   var DEFS = window.DEFINITIONS || {};
+  var SUMS = window.SUMMARIES || {};
   var GLOSSARY = window.GLOSSARY || [];
   var SITE = (CATALOG && CATALOG.site) || 'https://video.enlighten.org.tw/zh-tw/';
   var PAGE = 20;          // 每次顯示幾集
@@ -59,7 +60,9 @@
       });
       episodes.push({
         id: e.id, series: data.code, seriesName: s.name, ep: e.ep || '', title: e.t || '', who: e.who || '',
-        yt: e.yt || '', dur: e.dur || 0, durEst: !!e.durEst, text: text, paraPos: paraPos, titleN: norm(e.t)
+        yt: e.yt || '', dur: e.dur || 0, durEst: !!e.durEst, text: text, paraPos: paraPos, titleN: norm(e.t),
+        sum: SUMS[e.id] || null,
+        sumN: SUMS[e.id] ? norm(SUMS[e.id].s + (SUMS[e.id].p || []).join('') + (SUMS[e.id].k || []).join('')) : ''
       });
     });
   };
@@ -134,7 +137,7 @@
     episodes.forEach(function (e) {
       if (seriesFilter && e.series !== seriesFilter) return;
       if (whoFilter && e.who !== whoFilter) return;
-      var hits = [], counts = [], inTitle = [], ok = [], byV = [];
+      var hits = [], counts = [], inTitle = [], inSum = [], ok = [], byV = [];
       groups.forEach(function (g, gi) {
         var taken = [], n = 0, bv = {};
         byV.push(bv);
@@ -153,8 +156,10 @@
         });
         counts.push(n);
         var t = g.variants.some(function (x) { return e.titleN.indexOf(x) >= 0; });
+        var sm = !!e.sumN && g.variants.some(function (x) { return e.sumN.indexOf(x) >= 0; });
         inTitle.push(t);
-        ok.push(n > 0 || t);
+        inSum.push(sm);
+        ok.push(n > 0 || t || sm);
       });
       if (!(mode === 'or' ? ok.some(Boolean) : ok.every(Boolean))) return;
       hits.sort(function (a, b) { return a.pos - b.pos; });
@@ -167,7 +172,7 @@
       });
       var bs = bySeries[e.series] || (bySeries[e.series] = { code: e.series, name: e.seriesName, hits: 0, eps: 0 });
       bs.hits += total; bs.eps++;
-      results.push({ e: e, hits: hits, counts: counts, total: total, inTitle: inTitle, clusters: null });
+      results.push({ e: e, hits: hits, counts: counts, total: total, inTitle: inTitle, inSum: inSum, clusters: null });
     });
     return { results: results, totals: totals, bySeries: bySeries };
   }
@@ -238,7 +243,8 @@
     var order = function (a, b) { return a.e.series.localeCompare(b.e.series) || a.e.ep.localeCompare(b.e.ep, undefined, { numeric: true }); };
     state.results.sort(function (a, b) {
       if (s === 'series') return order(a, b);
-      var ta = a.total + (a.inTitle.some(Boolean) ? 0.5 : 0), tb = b.total + (b.inTitle.some(Boolean) ? 0.5 : 0);
+      var bonus = function (r) { return (r.inTitle.some(Boolean) ? 0.5 : 0) + (r.inSum.some(Boolean) ? 0.3 : 0); };
+      var ta = a.total + bonus(a), tb = b.total + bonus(b);
       return tb - ta || order(a, b);
     });
   }
@@ -250,6 +256,7 @@
     try { history.replaceState(null, '', q ? '#q=' + encodeURIComponent(q) : location.pathname); } catch (e) { /* file:// */ }
     if (!loaded) return;
     $('dict').hidden = true;
+    $('browse').hidden = true;
     if (!q) { showHome(); return; }
 
     var groups = parseQuery(q, opt.syn.checked);
@@ -338,6 +345,7 @@
   function showDict() {
     $('home').hidden = true;
     $('results').hidden = true;
+    $('browse').hidden = true;
     $('dict').hidden = false;
     try { history.replaceState(null, '', '#dict'); } catch (e) { /* file:// */ }
     if ($('dict').dataset.ready) return;
@@ -393,7 +401,8 @@
       return r.counts[gi] ? '<span class="badge m' + gi + '">' + esc(g.term) + ' × ' + r.counts[gi] + '</span>' : '';
     }).join('');
     if (r.inTitle.some(Boolean)) badges += '<span class="badge">標題含關鍵字</span>';
-    if (!r.total) badges += '<span class="badge">只在標題中出現</span>';
+    if (r.inSum.some(Boolean)) badges += '<span class="badge">本集摘要提到</span>';
+    if (!r.total) badges += '<span class="badge">' + (r.inTitle.some(Boolean) ? '只在標題中出現' : '只在摘要中出現') + '</span>';
 
     var len = e.text.length || 1;
     var dots = clusters.map(function (c, i) {
@@ -408,6 +417,7 @@
       '<h3><a href="' + href + '" target="_blank" rel="noopener">' + esc(e.title) + '</a></h3>' +
       '<div class="meta">' + [esc(e.who), e.durEst ? '約 ' + fmtDur(e.dur) + '（長度為估計）' : fmtDur(e.dur), '<a href="' + pageUrl(e) + '" target="_blank" rel="noopener">文字稿</a>'].filter(Boolean).join(' · ') + '</div>' +
       '<div class="badges">' + badges + '</div>' +
+      sumHtml(e, false) +
       (dots ? '<div class="timeline" aria-label="命中位置在節目中的分布">' + dots + '</div>' : '') +
       '<ol class="hits"></ol></div>';
 
@@ -448,6 +458,66 @@
       }
     });
     return el;
+  }
+
+  // 本集摘要（AI 依文字稿整理）
+  function sumHtml(e, open) {
+    var m = e.sum;
+    if (!m) return '';
+    return '<details class="epsum"' + (open ? ' open' : '') + '><summary>本集摘要' +
+      (m.k && m.k.length ? '<span class="tags">' + m.k.map(function (k) { return '<span>' + esc(k) + '</span>'; }).join('') + '</span>' : '') +
+      '</summary><p>' + esc(m.s) + '</p>' +
+      (m.p && m.p.length ? '<ul>' + m.p.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' : '') +
+      (m.k && m.k.length ? '<div class="chips">' + m.k.map(function (k) { return '<button class="chip small" data-q="' + esc(k) + '">' + esc(k) + '</button>'; }).join('') + '</div>' : '') +
+      '</details>';
+  }
+
+  // ---------- 節目瀏覽 ----------
+  function tagCloud(eps) {
+    var c = {};
+    eps.forEach(function (e) { if (e.sum) (e.sum.k || []).forEach(function (k) { c[k] = (c[k] || 0) + 1; }); });
+    var top = Object.keys(c).filter(function (k) { return c[k] > 1; }).sort(function (a, b) { return c[b] - c[a]; }).slice(0, 40);
+    return top.length ? '<div class="chips tagcloud"><span class="hint">常見主題：</span>' + top.map(function (k) {
+      return '<button class="chip small" data-tag="' + esc(k) + '">' + esc(k) + '<small>' + c[k] + '</small></button>';
+    }).join('') + '</div>' : '';
+  }
+
+  function showBrowse(code) {
+    $('home').hidden = true; $('results').hidden = true; $('dict').hidden = true;
+    var el = $('browse');
+    el.hidden = false;
+    var withSum = CATALOG.series.filter(function (s) { return episodes.some(function (e) { return e.series === s.code && e.sum; }); });
+    code = code || el.dataset.code || (withSum[0] || CATALOG.series[0]).code;
+    el.dataset.code = code;
+    try { history.replaceState(null, '', '#browse=' + code); } catch (e) { /* file:// */ }
+    var eps = episodes.filter(function (e) { return e.series === code; })
+      .sort(function (a, b) { return a.ep.localeCompare(b.ep, undefined, { numeric: true }); });
+    var hasSum = eps.some(function (e) { return e.sum; });
+    el.innerHTML = '<h2>節目瀏覽</h2>' +
+      '<div class="browse-bar"><select id="browseSeries">' + CATALOG.series.map(function (s) {
+        var mark = withSum.indexOf(s) >= 0 ? '（有摘要）' : '';
+        return '<option value="' + s.code + '"' + (s.code === code ? ' selected' : '') + '>' + esc(s.name) + mark + '</option>';
+      }).join('') + '</select>' +
+      '<input id="browseFilter" type="search" placeholder="' + (hasSum ? '用主題篩選，例如：授記、化城、如來藏' : '篩選標題') + '"></div>' +
+      (hasSum ? '<p class="hint">摘要、重點與主題標籤是 AI 依文字稿整理的，僅供快速瀏覽；內容以原文為準。</p>' : '<p class="hint">這個系列還沒有摘要，只列出標題。</p>') +
+      tagCloud(eps) +
+      '<div id="browseList"></div>';
+    function render(f) {
+      f = norm(f);
+      var list = eps.filter(function (e) { return !f || e.titleN.indexOf(f) >= 0 || e.sumN.indexOf(f) >= 0; });
+      $('browseList').innerHTML = '<p class="hint">' + list.length + ' 集</p>' + list.map(function (e) {
+        return '<article class="bitem"><div class="series">第 ' + esc(e.ep) + ' 集 · ' + esc(e.who) + (e.dur ? ' · ' + fmtDur(e.dur) : '') + '</div>' +
+          '<h3>' + esc(e.title) + '</h3>' + sumHtml(e, !!f) +
+          '<div class="meta">' + (e.yt ? '<button class="qplay" data-ep="' + esc(e.id) + '" data-t="' + PLAY_EARLY + '">播放 ▶</button> · ' : '') +
+          '<a href="' + pageUrl(e) + '" target="_blank" rel="noopener">文字稿</a></div></article>';
+      }).join('');
+    }
+    render('');
+    $('browseFilter').addEventListener('input', function () { render(this.value); });
+    el.querySelectorAll('.tagcloud button').forEach(function (b) {
+      b.addEventListener('click', function () { $('browseFilter').value = b.dataset.tag; render(b.dataset.tag); });
+    });
+    $('browseSeries').addEventListener('change', function () { showBrowse(this.value); });
   }
 
   function play(e, t) {
@@ -513,7 +583,7 @@
       (hot.length ? '<h2>常見名詞（依出現次數）</h2><div class="chips">' + hot.map(function (k) {
         return '<button class="chip" data-q="' + esc(k) + '">' + esc(k) + '<small>' + counts[k] + '</small></button>';
       }).join('') + '</div><p class="hint">數字含相關詞。名詞說明與相關詞可在 data/glossary.js 中自行增修。</p>' : '') +
-      '<p><button class="chip" id="dictBtn2">打開名詞辭典（' + GLOSSARY.length + ' 個名詞，含節目原文說明）</button></p>' +
+      '<p><button class="chip" id="browseBtn2">節目瀏覽（依系列看每集摘要）</button> <button class="chip" id="dictBtn2">打開名詞辭典（' + GLOSSARY.length + ' 個名詞，含節目原文說明）</button></p>' +
       '<h2>系列</h2><table class="serieslist">' + CATALOG.series.map(function (s) {
         return '<tr><td>' + esc(s.code) + '</td><td><a href="' + SITE + 'a/' + s.code + '" target="_blank" rel="noopener">' + esc(s.name) + '</a></td><td class="num">' + s.count + ' 集</td></tr>';
       }).join('') + '</table>';
@@ -563,6 +633,7 @@
     if (sb) { opt.series.value = sb.dataset.series; runSearch(state.query); }
     if (e.target.id === 'csvBtn') downloadCsv();
     if (e.target.id === 'dictBtn' || e.target.id === 'dictBtn2') { e.preventDefault(); if (loaded) { showDict(); window.scrollTo(0, 0); } }
+    if (e.target.id === 'browseBtn' || e.target.id === 'browseBtn2') { e.preventDefault(); if (loaded) { showBrowse(); window.scrollTo(0, 0); } }
     var qp = e.target.closest('.qplay');
     if (qp && epById[qp.dataset.ep]) play(epById[qp.dataset.ep], +qp.dataset.t);
   });
@@ -583,7 +654,9 @@
     loaded = true;
     episodes.forEach(function (e) { epById[e.id] = e; });
     fillWho();
-    if (/^#dict/.test(location.hash) && !$('q').value) showDict();
+    var bm = location.hash.match(/^#browse=?(\w*)/);
+    if (bm && !$('q').value) showBrowse(bm[1]);
+    else if (/^#dict/.test(location.hash) && !$('q').value) showDict();
     else runSearch($('q').value);
   });
 })();

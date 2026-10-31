@@ -186,3 +186,21 @@ mark.m3 { background: var(--mark4); }
 .gloss > .chip { margin-top: 10px; }
 .dict-filter { width: 100%; max-width: 420px; padding: 8px 12px; border: 1.5px solid var(--line); border-radius: var(--radius); background: var(--surface); margin-bottom: 6px; }
 #dict .gloss { background: var(--surface); border: 1px solid var(--line); }
+
+/* episode summaries */
+.epsum { margin: 0 0 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; font-size: .92rem; }
+.epsum > summary { cursor: pointer; color: var(--accent); }
+.epsum .tags { margin-left: 8px; }
+.epsum .tags span { display: inline-block; font-size: .75rem; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0 7px; margin: 0 3px 2px 0; }
+.epsum p { margin: 6px 0; }
+.epsum ul { margin: 0 0 6px; padding-left: 20px; }
+.epsum .chips { margin: 4px 0 4px; }
+.chip.small { font-size: .8rem; padding: 1px 9px; }
+.titlebar nav { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.browse-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+.browse-bar select, .browse-bar input { padding: 8px 10px; border: 1.5px solid var(--line); border-radius: var(--radius); background: var(--surface); min-width: 0; }
+.browse-bar input { flex: 1; min-width: 200px; }
+.bitem { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 16px; margin-bottom: 10px; }
+.bitem h3 { margin: 0 0 6px; font-size: 1.02rem; }
+.bitem .meta { margin: 0; }
+.tagcloud { margin: 6px 0 12px; align-items: center; }
