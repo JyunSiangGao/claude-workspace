@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>學佛影片字幕搜尋</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <h1><a href="#" id="homeLink">學佛影片字幕搜尋</a></h1>
+    <p class="sub">搜尋 <a id="channelLink" href="https://www.youtube.com/@enlightenvideo" target="_blank" rel="noopener">頻道</a> 所有影片的字幕，找出名詞出現在哪部影片、第幾分幾秒。</p>
+    <form id="searchForm" class="search" autocomplete="off">
+      <input id="q" type="search" placeholder="輸入名詞，例如：般若、四聖諦、阿賴耶識（多個詞用空格分開）" aria-label="搜尋名詞">
+      <button type="submit">搜尋</button>
+    </form>
+    <div class="opts">
+      <label><input type="checkbox" id="optSyn" checked> 含同義詞</label>
+      <label>多個詞時
+        <select id="optMode">
+          <option value="and">同一部影片都要出現</option>
+          <option value="or">任一個出現即可</option>
+        </select>
+      </label>
+      <label>排序
+        <select id="optSort">
+          <option value="count">出現次數多→少</option>
+          <option value="new">影片日期新→舊</option>
+          <option value="old">影片日期舊→新</option>
+        </select>
+      </label>
+      <label>點時間時
+        <select id="optPlay">
+          <option value="embed">在本頁播放</option>
+          <option value="tab">到 YouTube 開啟</option>
+        </select>
+      </label>
+    </div>
+  </div>
+</header>
+
+<div class="wrap" id="demoBanner" hidden>
+  <div class="banner">目前顯示的是<strong>示範資料</strong>。請在自己的電腦執行 <code>python tools/build_index.py</code> 下載頻道字幕，重新整理本頁後就能搜尋真實影片（說明見 README）。</div>
+</div>
+
+<main class="wrap layout">
+  <section id="content">
+    <div id="home"></div>
+    <div id="results" hidden>
+      <div id="summary"></div>
+      <div id="glossary"></div>
+      <div id="related"></div>
+      <div id="toolbar" class="toolbar"></div>
+      <div id="list"></div>
+      <div class="more"><button id="moreBtn" hidden>顯示更多影片</button></div>
+    </div>
+  </section>
+  <aside id="player" hidden>
+    <div class="player-inner">
+      <div class="player-head">
+        <strong id="playerTitle"></strong>
+        <button id="playerClose" aria-label="關閉播放器">✕</button>
+      </div>
+      <div class="frame"><iframe id="playerFrame" title="YouTube 播放器" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>
+      <div class="player-foot"><a id="playerLink" target="_blank" rel="noopener">在 YouTube 開啟</a></div>
+    </div>
+  </aside>
+</main>
+
+<footer class="wrap foot">字幕多為 YouTube 自動產生，可能有錯字或同音字；搜尋不到時可試試其他寫法。</footer>
+
+<script src="data/glossary.js"></script>
+<script src="data/index.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
