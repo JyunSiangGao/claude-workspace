@@ -1,65 +1,48 @@
-# 學佛影片字幕搜尋
+# 正覺弘法視頻搜尋
 
-搜尋 YouTube 頻道 [@enlightenvideo](https://www.youtube.com/@enlightenvideo) 所有影片的字幕。輸入名詞（例如「般若」「阿賴耶識」），就會列出：
+搜尋 [正覺教團弘法視頻](https://video.enlighten.org.tw/zh-tw/) 所有節目的文字稿。輸入名詞（例如「如來藏」「四聖諦」），就會列出：
 
-- 哪些影片提到這個名詞，每部影片出現幾次
-- 出現在第幾分幾秒，以及前後文；點時間就從那裡開始播放
-- 每部影片的時間軸，看出名詞集中在影片的哪一段
-- 名詞說明、同義詞（例如「四聖諦／四諦／苦集滅道」一起搜尋）
+- 哪些節目提到這個名詞，每集出現幾次，各系列出現幾次
+- 每次出現的前後文，可以展開看整段
+- 大約在第幾分幾秒，點一下就從那附近開始播放 YouTube 影片
+- 每集的時間軸，看出名詞集中在節目的哪一段
+- 名詞說明與相關詞（例如搜「阿賴耶識」也會找到「第八識」「藏識」）
 - 經常和它一起出現的其他名詞
-- 結果可以下載成 CSV（Excel 可開）
+- 可以只看某個系列或某位老師，結果可以下載成 CSV（Excel 可開）
 
-所有搜尋都在瀏覽器裡進行，不需要伺服器。
+所有搜尋都在瀏覽器裡進行，不需要伺服器，也不需要網路（播放影片除外）。
 
-## 第一次使用
+## 使用方式
 
-需要 Python 3.9 以上。在這個資料夾打開終端機：
+下載這個資料夾後，用瀏覽器打開 `index.html` 就能搜尋。第一次打開需要幾秒鐘載入全部文字稿。
 
-```bash
-pip install -r tools/requirements.txt
-```
+## 關於時間
 
-先試抓 5 部影片，確認能正常運作：
+網站的文字稿沒有時間標記，所以影片時間是**估算**的：用名詞在文字稿中的位置比例，乘上節目長度（從網站提供的 mp3 讀取）。估算值通常和實際相差幾十秒以內，所以點時間播放時會**提早 15 秒**開始。需要精確位置時，可以點「看整段」對照文字，或打開「文字稿」頁面。
 
-```bash
-python tools/build_index.py --limit 5
-```
+## 更新資料
 
-沒問題的話，抓整個頻道（影片多的話要一段時間，可以隨時按 Ctrl+C 中斷，下次會接著抓）：
+網站有新節目時，在這個資料夾打開終端機執行（需要 Python 3.9 以上，不用安裝其他套件）：
 
 ```bash
 python tools/build_index.py
 ```
 
-完成後用瀏覽器打開 `index.html` 就能搜尋。
+只會下載新的節目，以及之前還沒有文字稿的節目（網站上顯示「敬請期待」的）。中途可以按 Ctrl+C 停止，下次會接著下載。
 
-## 之後更新
-
-頻道有新影片時，再執行一次就好，只會抓新的影片：
+其他用法：
 
 ```bash
-python tools/build_index.py
+python tools/build_index.py --series a29
 ```
 
-## 常見問題
-
-**出現「Sign in to confirm you're not a bot」或 429 錯誤**：YouTube 暫時限制了下載。稍後再跑，或讓腳本使用你瀏覽器的登入狀態（先在該瀏覽器登入 YouTube）：
+只更新某個系列（系列代號見首頁的系列表）。
 
 ```bash
-python tools/build_index.py --cookies-from-browser chrome
+python tools/build_index.py --build-only
 ```
 
-也可以把 `chrome` 換成 `firefox`、`edge`、`safari`。另外記得更新 yt-dlp（`pip install -U yt-dlp`），YouTube 常改版。
-
-**有些影片顯示「無字幕」**：該影片沒有任何字幕（包含自動字幕），只能搜尋標題和影片說明。之後 YouTube 補上自動字幕時，可以用 `--retry` 重抓：
-
-```bash
-python tools/build_index.py --retry
-```
-
-**搜尋不到明明有講的詞**：字幕多半是 YouTube 自動辨識，常把佛學名詞辨識成同音字。可以試試較短的詞，或把常見錯字加進名詞表的同義詞。
-
-**點時間後影片沒有在頁面內播放**：直接雙擊打開 `index.html` 時，YouTube 內嵌播放器常無法使用，所以預設會到 YouTube 開啟。放到網站上（例如 GitHub Pages）就能在頁面內播放。
+不連網，只重建索引；修改名詞表之後執行，首頁的「常見名詞」次數才會更新。
 
 ## 增修名詞說明
 
@@ -70,7 +53,7 @@ python tools/build_index.py --retry
 ```
 
 - `term`：主要名詞
-- `aliases`：同義詞、別名、常見錯字（勾選「含同義詞」時會一起搜尋）。請避免只有一個字的詞。
+- `aliases`：相關詞、別名（勾選「含相關詞」時會一起搜尋）。請避免只有一個字或容易出現在一般句子裡的詞（例如「我見」會搜到「我見到」）。
 - `desc`：顯示在搜尋結果上方的說明
 
 ## 檔案說明
@@ -78,9 +61,12 @@ python tools/build_index.py --retry
 | 檔案 | 用途 |
 | --- | --- |
 | `index.html`、`assets/` | 搜尋網頁 |
-| `data/index.js` | 搜尋索引（由腳本產生；目前是示範資料） |
-| `data/subs/` | 每部影片下載下來的字幕（腳本的暫存，重建索引用） |
-| `data/glossary.js` | 名詞說明與同義詞 |
-| `tools/build_index.py` | 下載字幕、建立索引的腳本 |
+| `data/catalog.js` | 系列清單與統計（由腳本產生） |
+| `data/series/*.js` | 每個系列的文字稿（由腳本產生） |
+| `data/glossary.js` | 名詞說明與相關詞 |
+| `tools/build_index.py` | 下載文字稿、建立索引的腳本 |
+| `cache/` | 腳本下載的原始資料（不會上傳到 GitHub） |
 
-`build_index.py` 其他選項可用 `python tools/build_index.py --help` 查看，例如 `--build-only`（不連網，只重建索引）、`--no-convert`（不要把簡體字幕轉成繁體）。
+## 版權
+
+節目與文字稿內容來自正覺教團弘法視頻網站，版權屬原網站所有（網站標示為 CC BY-NC-ND 授權）。本工具僅供個人查詢學習使用，請勿用於商業用途或修改內容後散布。
