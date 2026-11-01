@@ -336,6 +336,35 @@ def build(args, data_dir, cache_dir):
     print(f"\n索引完成：{len(catalog)} 個系列、{n} 集、{total_chars / 10000:.0f} 萬字（{size:.1f} MB）")
 
 
+def seed_cache_from_data(data_dir, cache_dir):
+    """用已有的 data/series/*.js 補回 cache/（例如在 GitHub Actions 或新下載的資料夾中），
+    這樣只需要下載新節目，也避免 --build-only 時把現有資料清空。"""
+    added = 0
+    cat_path = data_dir / "catalog.js"
+    meta_path = cache_dir / "_series.json"
+    if cat_path.exists() and not meta_path.exists():
+        src = cat_path.read_text("utf-8")
+        cat = json.loads(src[src.index("=") + 1:].strip().rstrip(";"))
+        meta_path.write_text(json.dumps({s["code"]: {"code": s["code"], "name": s["name"], "count": s["count"]}
+                                         for s in cat["series"]}, ensure_ascii=False), "utf-8")
+    for js in sorted((data_dir / "series").glob("*.js")):
+        src = js.read_text("utf-8")
+        data = json.loads(src[src.index("window.ENL_ADD(") + len("window.ENL_ADD("):].strip().rstrip(";").rstrip(")"))
+        for e in data["episodes"]:
+            path = cache_dir / f"{e['id']}.json"
+            if path.exists():
+                continue
+            rec = {"slug": e["id"], "series": data["code"], "url": f"{BASE}/{LANG}/a/{data['code']}/{e['id']}",
+                   "title": e.get("t", ""), "ep": e.get("ep", ""), "teacher": e.get("who", ""), "mp3": "",
+                   "yt": e.get("yt", ""), "paras": e.get("p", []),
+                   # 估算的長度不算數，下次執行時重新讀 mp3
+                   "dur": 0 if e.get("durEst") else e.get("dur", 0), "seeded": True}
+            path.write_text(json.dumps(rec, ensure_ascii=False), "utf-8")
+            added += 1
+    if added:
+        print(f"從現有資料補回 {added} 集的暫存。")
+
+
 def main():
     p = argparse.ArgumentParser(description="抓取正覺教團弘法視頻的文字稿並建立搜尋索引")
     p.add_argument("--series", nargs="+", help="只抓這些系列，例如 a01 a02")
@@ -350,6 +379,7 @@ def main():
 
     cache_dir, data_dir = Path(args.cache_dir), Path(args.data_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
+    seed_cache_from_data(data_dir, cache_dir)
     if not args.build_only:
         try:
             crawl(args, cache_dir)
