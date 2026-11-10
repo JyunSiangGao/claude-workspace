@@ -16,7 +16,19 @@
 
 ## 使用方式
 
-下載這個資料夾後，用瀏覽器打開 `index.html` 就能搜尋。第一次打開需要幾秒鐘載入全部文字稿。
+把整個資料夾放在電腦上（例如 `D:\學佛影片搜尋`），然後：
+
+- **Windows：雙擊 `開啟搜尋.bat`**。有安裝 Python 的話，會在本機開一個小伺服器並打開瀏覽器，影片可以直接在網頁裡播放；沒有 Python 也能用，會直接打開 `index.html`，影片改在 YouTube 新分頁播放。
+- 其他系統：用瀏覽器打開 `index.html`。
+
+第一次打開需要幾秒鐘載入全部文字稿。
+
+### 放到 D 槽
+
+- **用 Git（可以一鍵更新，推薦）**：安裝 [Git for Windows](https://git-scm.com) 後，在「命令提示字元」執行
+  `git clone https://github.com/JyunSiangGao/claude-workspace.git "D:\學佛影片搜尋"`
+  之後要更新時，雙擊資料夾裡的 `更新資料.bat`。
+- **下載 ZIP**：在 GitHub 頁面按 **Code → Download ZIP**，解壓縮後把裡面的檔案放到 `D:\學佛影片搜尋`。要更新時重新下載一次。
 
 ## 關於時間
 
@@ -93,6 +105,7 @@ python tools/build_index.py --build-only
 | 檔案 | 用途 |
 | --- | --- |
 | `index.html`、`assets/` | 搜尋網頁 |
+| `開啟搜尋.bat`、`更新資料.bat` | Windows 用：雙擊開啟搜尋、從 GitHub 更新 |
 | `data/catalog.js` | 系列清單與統計（由腳本產生） |
 | `data/series/*.js` | 每個系列的文字稿（由腳本產生） |
 | `data/glossary.js` | 名詞說明與相關詞 |
