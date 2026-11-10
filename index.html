@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>正覺弘法視頻搜尋</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="titlebar"><h1><a href="#" id="homeLink">正覺弘法視頻搜尋</a></h1><nav><a href="#browse" id="browseBtn" class="navlink">節目瀏覽</a> <a href="#dict" id="dictBtn" class="navlink">名詞辭典</a></nav></div>
+    <p class="sub">搜尋 <a href="https://video.enlighten.org.tw/zh-tw/" target="_blank" rel="noopener">正覺教團弘法視頻</a> 所有節目的文字稿，找出名詞出現在哪一集、大約第幾分幾秒。</p>
+    <form id="searchForm" class="search" autocomplete="off">
+      <input id="q" type="search" placeholder="輸入名詞，例如：如來藏、四聖諦、阿賴耶識（多個詞用空格分開）" aria-label="搜尋名詞">
+      <button type="submit">搜尋</button>
+    </form>
+    <div class="opts">
+      <label><input type="checkbox" id="optSyn" checked> 含相關詞</label>
+      <label>系列
+        <select id="optSeries"><option value="">全部系列</option></select>
+      </label>
+      <label>主講
+        <select id="optWho"><option value="">全部老師</option></select>
+      </label>
+      <label>多個詞時
+        <select id="optMode">
+          <option value="and">同一集都要出現</option>
+          <option value="or">任一個出現即可</option>
+        </select>
+      </label>
+      <label>排序
+        <select id="optSort">
+          <option value="count">出現次數多→少</option>
+          <option value="series">系列與集數</option>
+        </select>
+      </label>
+      <label>點時間時
+        <select id="optPlay">
+          <option value="embed">在本頁播放</option>
+          <option value="tab">到 YouTube 開啟</option>
+        </select>
+      </label>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div id="loading" class="loading" hidden>
+    <div class="track"><div id="loadBar" class="fill"></div></div>
+    <span id="loadLabel">載入文字稿…</span>
+  </div>
+  <div id="noIndex" class="banner" hidden>還沒有建立索引。請在這個資料夾執行 <code>python tools/build_index.py</code> 下載文字稿，完成後重新整理本頁（說明見 README）。</div>
+</div>
+
+<main class="wrap layout">
+  <section id="content">
+    <div id="home"></div>
+    <div id="dict" hidden></div>
+    <div id="browse" hidden></div>
+    <div id="results" hidden>
+      <div id="summary"></div>
+      <div id="glossary"></div>
+      <div id="related"></div>
+      <div id="toolbar" class="toolbar"></div>
+      <div id="list"></div>
+      <div class="more"><button id="moreBtn" hidden>顯示更多</button></div>
+    </div>
+  </section>
+  <aside id="player" hidden>
+    <div class="player-inner">
+      <div class="player-head">
+        <strong id="playerTitle"></strong>
+        <button id="playerClose" aria-label="關閉播放器">✕</button>
+      </div>
+      <div class="frame"><iframe id="playerFrame" title="YouTube 播放器" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>
+      <div class="player-foot">
+        <a id="playerLink" target="_blank" rel="noopener">在 YouTube 開啟</a> ·
+        <a id="playerPage" target="_blank" rel="noopener">看文字稿</a>
+        <p class="hint">時間是依文字位置估算，可能與實際相差數十秒。</p>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<footer class="wrap foot">節目與文字稿內容來自 <a href="https://video.enlighten.org.tw/zh-tw/" target="_blank" rel="noopener">正覺教團弘法視頻</a>，版權屬原網站所有，本頁僅供個人查詢學習使用。</footer>
+
+<script src="data/glossary.js"></script>
+<script src="data/definitions.js"></script>
+<script src="data/summaries.js"></script>
+<script src="data/catalog.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>

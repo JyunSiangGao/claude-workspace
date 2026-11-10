@@ -1,0 +1,42 @@
+# 每週自動抓取正覺教團弘法視頻的新節目與新補上的文字稿，有變動才提交。
+# 也可以在 GitHub 的 Actions 頁面手動按「Run workflow」立即執行。
+name: 每週更新文字稿
+
+on:
+  schedule:
+    - cron: '23 19 * * 6'   # 每週日台灣時間凌晨 3:23（UTC 週六 19:23）
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 抓取新節目並重建索引
+        run: python tools/build_index.py --workers 3
+
+      - name: 有新內容就提交
+        run: |
+          if git diff --quiet -- data/series; then
+            echo "沒有新節目或新文字稿，不需要提交。"
+            git checkout -- data/catalog.js
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/series data/catalog.js
+          git commit -m "每週自動更新文字稿 $(date -u +%Y-%m-%d)"
+          git push
