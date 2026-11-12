@@ -1,20 +1,22 @@
 @echo off
-chcp 65001 >nul
+rem Keep this file ASCII-only (see the note in the other .bat file).
+rem Downloads new episodes from the website and rebuilds the search index.
 cd /d "%~dp0"
-if not exist ".git" goto nogit
-where git >nul 2>nul || goto nogitexe
-echo 正在從 GitHub 下載最新資料...
-git pull
+set PY=
+where py >nul 2>nul && set PY=py
+if not defined PY (
+  where python >nul 2>nul && set PY=python
+)
+if not defined PY goto nopython
+%PY% tools\build_index.py
 echo.
-echo 更新完成。
+rem Books, e-paper and media pages from books.enlighten.org.tw (needs: python -m pip install pymupdf)
+%PY% tools\build_books.py
+echo.
 pause
 goto end
-:nogitexe
-echo 這台電腦沒有安裝 Git，請到 https://git-scm.com 下載安裝後再試一次。
-pause
-goto end
-:nogit
-echo 這個資料夾不是用 git 下載的，沒辦法自動更新。
-echo 請到 GitHub 重新下載最新的 ZIP，解壓縮後覆蓋這個資料夾。
+:nopython
+echo Python was not found. Install Python 3.9 or later from https://www.python.org
+echo and run this file again.
 pause
 :end

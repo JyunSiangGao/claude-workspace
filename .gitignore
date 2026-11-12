@@ -1,3 +1,9 @@
 __pycache__/
 *.pyc
 cache/
+*.zip
+.claude/
+備份_改版前/
+# 書刊（正智書香園地）全文有著作權，只放在自己電腦上，不公開
+data/books/
+data/books_catalog.js

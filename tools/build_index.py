@@ -5,7 +5,10 @@
 
 只需要 Python 3.9 以上，不用安裝其他套件。在專案根目錄執行：
     python tools/build_index.py                # 抓取新節目並重建索引
-    python tools/build_index.py --series a01   # 只抓某些系列（可列多個）
+    python tools/build_index.py --series a01   # 只抓某些系列（可列多個，例如 a01 b02）
+
+網站有兩個分類：「三乘菩提」(a01～) 與「法義辨正」(b01～b03、c01)，兩個都會抓。
+「法義辨正」的節目網站上只有影片、沒有文字稿，所以只能用標題找到，不能搜尋內容。
     python tools/build_index.py --build-only   # 不連網，只用已下載的資料重建索引（例如修改名詞表之後）
     python tools/build_index.py --refresh      # 全部重新下載
 
@@ -60,19 +63,28 @@ def strip_tags(s):
 
 
 def list_series():
-    """從首頁選單取得所有系列 (a01, a02, ...)"""
+    """從網站選單取得所有系列，以及每個系列屬於哪個分類。
+
+    網站有兩個分類：a「三乘菩提」(a01, a02, ...) 與 b「法義辨正」(b01, b02, b03, c01)。
+    回傳 ({系列代號: 分類代號}, {分類代號: 分類名稱})。
+    """
     page = get_text(f"{BASE}/{LANG}/a")
-    codes = sorted(set(re.findall(rf'href="/{LANG}/a/(a\d+)"', page)))
-    return codes
+    cats = {}
+    for cat, code in re.findall(rf'href="/{LANG}/([a-z])/([a-z]\d+)"', page):
+        cats.setdefault(code, cat)
+    names = {}
+    for cat, label in re.findall(rf'<a[^>]*href="/{LANG}/([a-z])"[^>]*>\s*([^<]+?)\s*<', page):
+        names.setdefault(cat, label)
+    return cats, names
 
 
-def parse_series_page(code):
-    page = get_text(f"{BASE}/{LANG}/a/{code}")
+def parse_series_page(code, cat="a"):
+    page = get_text(f"{BASE}/{LANG}/{cat}/{code}")
     m = re.search(r"<title>([^<]*)</title>", page)
     name = strip_tags(m.group(1)) if m else code
     episodes = []
     for row in re.findall(r"<tr class=\"cat-list-row\d\">(.*?)</tr>", page, re.S):
-        link = re.search(rf'href="(/{LANG}/a/{code}/([^"]+))"[^>]*>(.*?)</a>', row, re.S)
+        link = re.search(rf'href="(/{LANG}/{cat}/{code}/([^"]+))"[^>]*>(.*?)</a>', row, re.S)
         if not link:
             continue
         num = re.search(r'<div class="[^"]*">\s*([^<]*?)\s*</div>', row)
@@ -185,13 +197,19 @@ def fetch_episode(ep, series_code, cache_dir):
 
 
 def crawl(args, cache_dir):
-    codes = args.series or list_series()
+    cats, cat_names = list_series()
+    codes = args.series or sorted(cats, key=lambda c: (cats[c], c))
+    unknown = [c for c in codes if c not in cats]
+    if unknown:
+        print(f"網站上找不到這些系列，略過：{' '.join(unknown)}")
+        codes = [c for c in codes if c in cats]
     print(f"共 {len(codes)} 個系列：{' '.join(codes)}")
     series_meta = {}
     todo = []
     for code in codes:
-        name, eps = parse_series_page(code)
-        series_meta[code] = {"code": code, "name": name, "count": len(eps)}
+        cat = cats[code]
+        name, eps = parse_series_page(code, cat)
+        series_meta[code] = {"code": code, "name": name, "count": len(eps), "cat": cat, "catName": cat_names.get(cat, "")}
         new = []
         for e in eps:
             path = cache_dir / f"{e['slug']}.json"
@@ -202,6 +220,9 @@ def crawl(args, cache_dir):
         time.sleep(args.sleep)
     meta_path = cache_dir / "_series.json"
     old_meta = json.loads(meta_path.read_text("utf-8")) if meta_path.exists() else {}
+    for code, m in old_meta.items():  # 這次沒抓的系列也補上分類
+        if code in cats:
+            m["cat"], m["catName"] = cats[code], cat_names.get(cats[code], "")
     meta_path.write_text(json.dumps({**old_meta, **series_meta}, ensure_ascii=False), "utf-8")
 
     if args.limit:
@@ -250,6 +271,49 @@ def needs_refetch(rec):
     return not rec.get("paras") or is_placeholder(rec["paras"]) or not rec.get("dur")
 
 
+ASR_PARA_CHARS = 160  # 語音辨識的句子併成段落，每段大約幾個字
+ASR_PAUSE = 2.0       # 停頓超過幾秒就另起一段
+_PUNCT = "，。！？；：、…,.!?;:」』）)"
+
+
+def load_asr(data_dir, slug):
+    """讀取語音辨識的結果（tools/transcribe.py 產生的 data/asr/<節目代號>.json）。
+
+    回傳 (段落, 每段開始的秒數)；沒有辨識結果時回傳 None。
+    辨識結果每一句都有實際時間，所以這些節目的播放時間不必估算。
+    """
+    path = data_dir / "asr" / f"{slug}.json"
+    if not path.exists():
+        return None
+    try:
+        segs = json.loads(path.read_text("utf-8")).get("segments") or []
+    except Exception:  # noqa: BLE001
+        return None
+    paras, times = [], []
+    cur, start, last_end = "", 0.0, 0.0
+    for s in segs:
+        text = (s.get("t") or "").strip()
+        # 辨識結果有時用空格代替逗號（「影響那個生嘛 對不對」），換成逗號，名詞才不會被空格切開
+        text = re.sub(r"(?<=[一-鿿])\s+(?=[一-鿿])", "，", text)
+        if not text:
+            continue
+        pause = s["s"] - last_end >= ASR_PAUSE and len(cur) >= 40
+        if cur and (len(cur) >= ASR_PARA_CHARS or pause):
+            paras.append(cur)
+            times.append(int(start))
+            cur = ""
+        if not cur:
+            start = s["s"]
+        elif cur[-1] not in _PUNCT:
+            cur += "，"
+        cur += text
+        last_end = s["e"]
+    if cur:
+        paras.append(cur)
+        times.append(int(start))
+    return (paras, times) if paras else None
+
+
 def ep_sort_key(rec):
     m = re.search(r"(\d+)", rec.get("ep") or "")
     n = int(m.group(1)) if m else 0
@@ -278,7 +342,7 @@ def build(args, data_dir, cache_dir):
     catalog = []
     total_chars = 0
     all_text = []
-    for code in sorted(by_series):
+    for code in sorted(by_series, key=lambda c: (series_meta.get(c, {}).get("cat", "a"), c)):
         recs = sorted(by_series[code], key=ep_sort_key)
         eps = []
         for r in recs:
@@ -289,8 +353,12 @@ def build(args, data_dir, cache_dir):
             dur = r.get("dur", 0) if r.get("dur", 0) >= 60 else 0
             item = {"id": r["slug"], "ep": r.get("ep", ""), "t": r["title"], "who": who,
                     "yt": r.get("yt", ""), "dur": dur, "p": paras}
-            if not dur and paras:
-                item["dur"] = int(len("".join(paras)) / CHARS_PER_MIN * 60)
+            # 官網沒有文字稿的節目，改用語音辨識的結果（附每段的實際時間）
+            asr = None if paras else load_asr(data_dir, r["slug"])
+            if asr:
+                item["p"], item["pt"], item["asr"] = asr[0], asr[1], 1
+            if not dur and item["p"]:
+                item["dur"] = int(len("".join(item["p"])) / CHARS_PER_MIN * 60)
                 item["durEst"] = 1
             eps.append(item)
         all_text += [norm("".join(e["p"])) for e in eps]
@@ -298,6 +366,8 @@ def build(args, data_dir, cache_dir):
         total_chars += chars
         meta = series_meta.get(code, {})
         catalog.append({"code": code, "name": meta.get("name", code), "count": len(eps), "chars": chars,
+                        "cat": meta.get("cat", "a"), "catName": meta.get("catName", ""),
+                        "asr": sum(1 for e in eps if e.get("asr")),  # 幾集的文字是語音辨識來的
                         "file": f"data/series/{code}.js"})
         (out_dir / f"{code}.js").write_text(
             "// 由 tools/build_index.py 自動產生\nwindow.ENL_ADD(" +
@@ -342,11 +412,15 @@ def seed_cache_from_data(data_dir, cache_dir):
     added = 0
     cat_path = data_dir / "catalog.js"
     meta_path = cache_dir / "_series.json"
-    if cat_path.exists() and not meta_path.exists():
+    cat_of = {}
+    if cat_path.exists():
         src = cat_path.read_text("utf-8")
         cat = json.loads(src[src.index("=") + 1:].strip().rstrip(";"))
-        meta_path.write_text(json.dumps({s["code"]: {"code": s["code"], "name": s["name"], "count": s["count"]}
-                                         for s in cat["series"]}, ensure_ascii=False), "utf-8")
+        cat_of = {s["code"]: s.get("cat", "a") for s in cat["series"]}
+        if not meta_path.exists():
+            meta_path.write_text(json.dumps({s["code"]: {"code": s["code"], "name": s["name"], "count": s["count"],
+                                                         "cat": s.get("cat", "a"), "catName": s.get("catName", "")}
+                                             for s in cat["series"]}, ensure_ascii=False), "utf-8")
     for js in sorted((data_dir / "series").glob("*.js")):
         src = js.read_text("utf-8")
         data = json.loads(src[src.index("window.ENL_ADD(") + len("window.ENL_ADD("):].strip().rstrip(";").rstrip(")"))
@@ -354,9 +428,11 @@ def seed_cache_from_data(data_dir, cache_dir):
             path = cache_dir / f"{e['id']}.json"
             if path.exists():
                 continue
-            rec = {"slug": e["id"], "series": data["code"], "url": f"{BASE}/{LANG}/a/{data['code']}/{e['id']}",
+            rec = {"slug": e["id"], "series": data["code"],
+                   "url": f"{BASE}/{LANG}/{cat_of.get(data['code'], 'a')}/{data['code']}/{e['id']}",
                    "title": e.get("t", ""), "ep": e.get("ep", ""), "teacher": e.get("who", ""), "mp3": "",
-                   "yt": e.get("yt", ""), "paras": e.get("p", []),
+                   # 語音辨識的文字不算官網的文字稿（它另外存在 data/asr/）
+                   "yt": e.get("yt", ""), "paras": [] if e.get("asr") else e.get("p", []),
                    # 估算的長度不算數，下次執行時重新讀 mp3
                    "dur": 0 if e.get("durEst") else e.get("dur", 0), "seeded": True}
             path.write_text(json.dumps(rec, ensure_ascii=False), "utf-8")
@@ -386,6 +462,7 @@ def main():
         except KeyboardInterrupt:
             print("\n已中斷，先用目前下載好的資料建立索引。")
     build(args, data_dir, cache_dir)
+    print("更新完成。搜尋網頁已經開著的話，請按 F5 重新整理。")
 
 
 if __name__ == "__main__":

@@ -4,52 +4,81 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>正覺弘法視頻搜尋</title>
-<link rel="stylesheet" href="assets/style.css">
+<script>
+// 先套用記住的深色／淺色設定，避免畫面閃一下
+try { var t = localStorage.getItem('theme'); if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
+</script>
+<link rel="stylesheet" href="assets/style.css?v=4">
 </head>
 <body>
-<header class="top">
+<header class="top" id="top">
   <div class="wrap">
-    <div class="titlebar"><h1><a href="#" id="homeLink">正覺弘法視頻搜尋</a></h1><nav><a href="#browse" id="browseBtn" class="navlink">節目瀏覽</a> <a href="#dict" id="dictBtn" class="navlink">名詞辭典</a></nav></div>
-    <p class="sub">搜尋 <a href="https://video.enlighten.org.tw/zh-tw/" target="_blank" rel="noopener">正覺教團弘法視頻</a> 所有節目的文字稿，找出名詞出現在哪一集、大約第幾分幾秒。</p>
-    <form id="searchForm" class="search" autocomplete="off">
-      <input id="q" type="search" placeholder="輸入名詞，例如：如來藏、四聖諦、阿賴耶識（多個詞用空格分開）" aria-label="搜尋名詞">
-      <button type="submit">搜尋</button>
-    </form>
-    <div class="opts">
-      <label><input type="checkbox" id="optSyn" checked> 含相關詞</label>
-      <label>系列
-        <select id="optSeries"><option value="">全部系列</option></select>
-      </label>
-      <label>主講
-        <select id="optWho"><option value="">全部老師</option></select>
-      </label>
-      <label>多個詞時
-        <select id="optMode">
-          <option value="and">同一集都要出現</option>
-          <option value="or">任一個出現即可</option>
-        </select>
-      </label>
-      <label>排序
-        <select id="optSort">
-          <option value="count">出現次數多→少</option>
-          <option value="series">系列與集數</option>
-        </select>
-      </label>
-      <label>點時間時
-        <select id="optPlay">
-          <option value="embed">在本頁播放</option>
-          <option value="tab">到 YouTube 開啟</option>
-        </select>
-      </label>
+    <div class="titlebar">
+      <h1><a href="#" id="homeLink" title="回到首頁">正覺弘法視頻搜尋</a></h1>
+      <nav>
+        <a href="#browse" id="browseBtn" class="navlink">節目瀏覽</a>
+        <a href="#dict" id="dictBtn" class="navlink">名詞辭典</a>
+        <span class="fontctl" role="group" aria-label="顯示設定">
+          <button type="button" id="fontDown" title="字體縮小" aria-label="字體縮小">A−</button>
+          <button type="button" id="fontUp" title="字體放大" aria-label="字體放大">A＋</button>
+          <button type="button" id="themeBtn" title="切換深色／淺色畫面">深色</button>
+        </span>
+      </nav>
     </div>
+    <p class="sub">輸入佛法名詞，找出 <a href="https://video.enlighten.org.tw/zh-tw/" target="_blank" rel="noopener">正覺教團弘法視頻</a> 哪幾集講到它，點時間就從那裡開始播放<span class="books-only">；也一起找 <a href="https://books.enlighten.org.tw/zh-tw/" target="_blank" rel="noopener">正智書香園地</a> 的電子報與贈閱書籍</span>。</p>
   </div>
 </header>
+
+<div class="searchbar" id="searchbar">
+  <div class="wrap">
+    <form id="searchForm" class="search" autocomplete="off" role="search">
+      <input id="q" type="search" placeholder="輸入名詞，例如：如來藏（多個詞用空格分開）" aria-label="搜尋名詞">
+      <button type="submit">搜尋</button>
+    </form>
+  </div>
+</div>
+
+<div class="optsbar">
+  <div class="wrap">
+    <details id="optBox" class="optbox">
+      <summary>更多搜尋選項<span class="optdesc">（只看某個系列或老師、排序、播放方式）</span><b id="optNote"></b></summary>
+      <div class="opts">
+        <label class="field"><span>只看這個系列</span>
+          <select id="optSeries"><option value="">全部系列</option></select>
+        </label>
+        <label class="field"><span>只看這位老師</span>
+          <select id="optWho"><option value="">全部老師</option></select>
+        </label>
+        <label class="field"><span>輸入多個詞時</span>
+          <select id="optMode">
+            <option value="and">每個詞都要在同一集出現</option>
+            <option value="or">出現其中一個就算</option>
+          </select>
+        </label>
+        <label class="field"><span>結果排序</span>
+          <select id="optSort">
+            <option value="count">出現最多次的排前面</option>
+            <option value="series">依系列、集數順序</option>
+          </select>
+        </label>
+        <label class="field"><span>點時間播放影片</span>
+          <select id="optPlay">
+            <option value="embed">在本頁旁邊播放</option>
+            <option value="tab">開新分頁到 YouTube</option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" id="optSyn" checked> 連同別名一起找 <small>（例：搜「阿賴耶識」也會找「第八識」）</small></label>
+      </div>
+    </details>
+  </div>
+</div>
 
 <div class="wrap">
   <div id="loading" class="loading" hidden>
     <div class="track"><div id="loadBar" class="fill"></div></div>
-    <span id="loadLabel">載入文字稿…</span>
+    <span id="loadLabel">正在載入文字稿，第一次開啟需要幾秒…</span>
   </div>
+  <p id="booksNote" class="hint booksnote" hidden></p>
   <div id="noIndex" class="banner" hidden>還沒有建立索引。請在這個資料夾執行 <code>python tools/build_index.py</code> 下載文字稿，完成後重新整理本頁（說明見 README）。</div>
 </div>
 
@@ -59,36 +88,53 @@
     <div id="dict" hidden></div>
     <div id="browse" hidden></div>
     <div id="results" hidden>
-      <div id="summary"></div>
-      <div id="glossary"></div>
-      <div id="related"></div>
+      <div id="empty"></div>
       <div id="toolbar" class="toolbar"></div>
       <div id="list"></div>
       <div class="more"><button id="moreBtn" hidden>顯示更多</button></div>
     </div>
   </section>
-  <aside id="player" hidden>
-    <div class="player-inner">
-      <div class="player-head">
-        <strong id="playerTitle"></strong>
-        <button id="playerClose" aria-label="關閉播放器">✕</button>
+  <!-- 右欄：播放器在上，搜尋結果的統計、名詞說明、相關名詞在下（手機上排在節目列表前面） -->
+  <aside id="side" hidden>
+    <div class="side-inner">
+      <div id="player" hidden>
+        <div class="player-head">
+          <strong id="playerTitle"></strong>
+          <button id="playerClose" aria-label="關閉播放器" title="關閉播放器（Esc）">✕</button>
+        </div>
+        <div class="frame"><iframe id="playerFrame" title="YouTube 播放器" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>
+        <div class="player-ctl">
+          <button type="button" id="hitPrev" title="跳到這一集的上一處">◀ 上一處</button>
+          <button type="button" id="seekBack" title="往回 15 秒">−15 秒</button>
+          <button type="button" id="seekFwd" title="往後 15 秒">＋15 秒</button>
+          <button type="button" id="hitNext" title="跳到這一集的下一處">下一處 ▶</button>
+          <span id="hitPos" class="hitpos"></span>
+        </div>
+        <p id="hitText" class="hittext"></p>
+        <div class="player-foot">
+          <a id="playerLink" target="_blank" rel="noopener">在 YouTube 開啟</a> ·
+          <a id="playerPage" target="_blank" rel="noopener">看文字稿</a>
+          <p class="hint">時間是依文字位置估算，可能與實際相差數十秒，可用上面的「−15 秒／＋15 秒」調整。影片放不出來時，請按「在 YouTube 開啟」。</p>
+        </div>
       </div>
-      <div class="frame"><iframe id="playerFrame" title="YouTube 播放器" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>
-      <div class="player-foot">
-        <a id="playerLink" target="_blank" rel="noopener">在 YouTube 開啟</a> ·
-        <a id="playerPage" target="_blank" rel="noopener">看文字稿</a>
-        <p class="hint">時間是依文字位置估算，可能與實際相差數十秒。</p>
+      <div id="rinfo" hidden>
+        <div id="summary"></div>
+        <div id="glossary"></div>
+        <div id="related"></div>
       </div>
     </div>
   </aside>
 </main>
 
-<footer class="wrap foot">節目與文字稿內容來自 <a href="https://video.enlighten.org.tw/zh-tw/" target="_blank" rel="noopener">正覺教團弘法視頻</a>，版權屬原網站所有，本頁僅供個人查詢學習使用。</footer>
+<footer class="wrap foot">節目與文字稿內容來自 <a href="https://video.enlighten.org.tw/zh-tw/" target="_blank" rel="noopener">正覺教團弘法視頻</a><span class="books-only">，書刊內容來自 <a href="https://books.enlighten.org.tw/zh-tw/" target="_blank" rel="noopener">正智書香園地</a></span>，版權屬原網站<span class="books-only">與出版社</span>所有，本頁僅供個人查詢學習使用。</footer>
+
+<button type="button" id="toTop" class="totop" hidden>↑ 回到最上面</button>
 
 <script src="data/glossary.js"></script>
 <script src="data/definitions.js"></script>
 <script src="data/summaries.js"></script>
 <script src="data/catalog.js"></script>
-<script src="assets/app.js"></script>
+<script src="data/books_catalog.js"></script>
+<script src="assets/app.js?v=5"></script>
 </body>
 </html>

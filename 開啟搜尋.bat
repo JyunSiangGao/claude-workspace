@@ -1,21 +1,20 @@
 @echo off
-chcp 65001 >nul
+rem Keep this file ASCII-only. cmd.exe mis-reads batch files that contain
+rem Chinese text and can silently skip the next command (the server never
+rem started). All Chinese messages are printed by tools\serve.py instead.
 cd /d "%~dp0"
-set PORT=8765
 set PY=
 where py >nul 2>nul && set PY=py
 if not defined PY (
   where python >nul 2>nul && set PY=python
 )
 if not defined PY goto nopython
-echo 正在啟動學佛影片搜尋...
-echo 要停止時，關閉工作列上名為「學佛影片搜尋伺服器」的視窗。
-start "學佛影片搜尋伺服器" /min %PY% -m http.server %PORT% --bind 127.0.0.1
-timeout /t 2 /nobreak >nul
-start "" "http://localhost:%PORT%/"
+%PY% tools\serve.py
+if errorlevel 1 pause
 goto end
 :nopython
-echo 找不到 Python，改用直接開啟檔案的方式（影片會在 YouTube 新分頁播放）。
+echo Python was not found, so the page is opened directly as a file.
+echo Videos will open in a new YouTube tab instead of playing inside the page.
 start "" "%~dp0index.html"
-timeout /t 3 /nobreak >nul
+timeout /t 6 >nul
 :end
